@@ -1,10 +1,27 @@
 use crate::{RoomId, TaskId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Priority {
     High,
     Normal,
     Low,
+}
+
+impl Priority {
+    /// Lower rank = higher priority. Explicit mapping decouples sort order
+    /// from the enum declaration order, so reordering variants cannot silently
+    /// flip optimizer behavior.
+    ///
+    /// rank が小さいほど高優先度。enum の宣言順に依存しないよう明示的に
+    /// マッピングしており、variant の並び替えで optimizer の挙動が静かに
+    /// 逆転することを防ぐ。
+    pub fn rank(self) -> u8 {
+        match self {
+            Priority::High => 0,
+            Priority::Normal => 1,
+            Priority::Low => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

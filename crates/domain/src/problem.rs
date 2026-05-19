@@ -44,6 +44,17 @@ pub struct ScoringWeights {
 }
 
 impl Default for ScoringWeights {
+    /// Phase 1 placeholder weights. Doctor minutes are penalized ~6x nurse minutes
+    /// to reflect the doctor being the scarce resource, and travel is penalized at
+    /// roughly half the work rate so routes are discouraged from moving without
+    /// producing value. Unassigned-task penalties dominate the per-minute costs so
+    /// the optimizer prefers scheduling a task over leaving it on the table.
+    ///
+    /// Phase 1 の暫定重み。希少リソースである医師の1分は看護師の約6倍に
+    /// ペナルティ付けされ、travel は work のおよそ半分の重みにすることで
+    /// 価値を生まない移動を抑制する。未割当タスクのペナルティは per-minute の
+    /// コストよりも十分大きく、optimizer は基本的にタスクを残すよりも
+    /// 割り当てる方を選ぶ。
     fn default() -> Self {
         Self {
             doctor_work_minute_penalty: 20,

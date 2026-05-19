@@ -11,7 +11,6 @@ pub struct MethodReport {
 }
 
 pub fn build_method_report(
-    nurse_count: usize,
     method: &'static str,
     solution: &Solution,
     problem: &ProblemInput,
@@ -20,7 +19,7 @@ pub fn build_method_report(
     let score = score(solution, problem);
 
     MethodReport {
-        nurse_count,
+        nurse_count: problem.nurses().count(),
         method,
         score,
         violation_count: violations.len(),

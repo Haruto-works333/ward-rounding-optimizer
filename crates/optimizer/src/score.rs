@@ -37,7 +37,7 @@ pub fn score(solution: &Solution, problem: &ProblemInput) -> ScoreBreakdown {
             earned_task_ids.insert(visit.task_id.clone());
         }
 
-        let active_minutes = route_active_minutes(route, &sorted_visits, problem);
+        let active_minutes = route_active_minutes(route, &sorted_visits, problem, staff);
 
         match staff.role {
             StaffRole::Doctor => {
@@ -151,6 +151,7 @@ fn route_active_minutes(
     route: &domain::StaffRoute,
     sorted_visits: &[domain::Visit],
     problem: &ProblemInput,
+    staff: &domain::Staff,
 ) -> i32 {
     let last_visit_end = sorted_visits.last().map(|visit| visit.end_minute);
 
@@ -161,5 +162,6 @@ fn route_active_minutes(
         (None, None) => return 0,
     };
 
-    active_until.value() - problem.planning_window.start.value()
+    let active_from = problem.planning_window.start.max(staff.available_from);
+    active_until.value() - active_from.value()
 }

@@ -1,4 +1,5 @@
 pub mod baseline;
+pub mod common;
 pub mod fixtures;
 pub mod greedy;
 pub mod report;

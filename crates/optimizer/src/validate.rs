@@ -325,6 +325,21 @@ fn validate_sync_task(
         .filter(|assigned| assigned.role == StaffRole::Nurse)
         .collect::<Vec<_>>();
 
+    if doctor_visits.len() > 1 || nurse_visits.len() > 1 {
+        // Duplicate has precedence — the missing-side case (count == 0) is implicit in the counts.
+        // 重複側を優先して報告する。片側欠落 (count == 0) の事象はメッセージ内の counts に表れる。
+        violations.push(Violation::new(
+            ViolationKind::DuplicateAssignment,
+            format!(
+                "sync task has duplicate role assignments: task={:?}, doctors={}, nurses={}",
+                task_id,
+                doctor_visits.len(),
+                nurse_visits.len()
+            ),
+        ));
+        return;
+    }
+
     if doctor_visits.len() != 1 || nurse_visits.len() != 1 {
         violations.push(Violation::new(
             ViolationKind::SyncRequirementViolation,
@@ -335,19 +350,6 @@ fn validate_sync_task(
                 nurse_visits.len()
             ),
         ));
-
-        if doctor_visits.len() > 1 || nurse_visits.len() > 1 {
-            violations.push(Violation::new(
-                ViolationKind::DuplicateAssignment,
-                format!(
-                    "sync task has duplicate role assignments: task={:?}, doctors={}, nurses={}",
-                    task_id,
-                    doctor_visits.len(),
-                    nurse_visits.len()
-                ),
-            ));
-        }
-
         return;
     }
 

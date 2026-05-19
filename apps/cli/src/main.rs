@@ -35,7 +35,7 @@ fn run_mini_case(args: &[String]) {
 
     let rows = solutions
         .iter()
-        .map(|(method, solution)| build_row(2, method, solution, &problem))
+        .map(|(method, solution)| build_row(method, solution, &problem))
         .collect::<Vec<_>>();
 
     println!("Scenario: mini-case-001");
@@ -65,12 +65,7 @@ fn run_sensitivity(args: &[String]) {
         let problem = mini_case_001(nurse_count);
         let solution = greedy_optimizer(&problem);
 
-        rows.push(build_row(
-            nurse_count,
-            "GreedyOptimizer",
-            &solution,
-            &problem,
-        ));
+        rows.push(build_row("GreedyOptimizer", &solution, &problem));
     }
 
     let sample_problem = mini_case_001(nurse_min);
@@ -87,12 +82,11 @@ fn run_sensitivity(args: &[String]) {
 }
 
 fn build_row(
-    nurse_count: usize,
     method: &'static str,
     solution: &Solution,
     problem: &ProblemInput,
 ) -> ReportRow {
-    let report = build_method_report(nurse_count, method, solution, problem);
+    let report = build_method_report(method, solution, problem);
     let score = report.score;
 
     ReportRow {

@@ -1,14 +1,9 @@
-use domain::{Minute, ProblemInput, Solution, StaffId, StaffRole, Task, TaskRequirement, Visit};
+use domain::{Minute, ProblemInput, Solution, StaffRole, Task, TaskRequirement, Visit};
+
+use crate::common::assign_pair_for_sync_task;
 
 pub fn greedy_optimizer(problem: &ProblemInput) -> Solution {
-    let mut solution = Solution {
-        routes: problem
-            .staff
-            .iter()
-            .map(|staff| domain::StaffRoute::new(staff.id.0.clone()))
-            .collect(),
-        unassigned_task_ids: Vec::new(),
-    };
+    let mut solution = Solution::with_empty_routes(&problem.staff);
 
     let mut sync_tasks = problem
         .tasks
@@ -19,7 +14,7 @@ pub fn greedy_optimizer(problem: &ProblemInput) -> Solution {
     sync_tasks.sort_by(task_value_order);
 
     for task in sync_tasks {
-        if !assign_to_best_doctor_nurse_pair(problem, &mut solution, task) {
+        if !assign_pair_for_sync_task(problem, &mut solution, task) {
             solution.unassigned_task_ids.push(task.id.clone());
         }
     }
@@ -62,7 +57,8 @@ pub fn greedy_optimizer(problem: &ProblemInput) -> Solution {
 
 fn task_value_order(a: &&Task, b: &&Task) -> std::cmp::Ordering {
     a.priority
-        .cmp(&b.priority)
+        .rank()
+        .cmp(&b.priority.rank())
         .then_with(|| b.points.cmp(&a.points))
         .then_with(|| a.duration_minutes.cmp(&b.duration_minutes))
         .then_with(|| a.room_id.cmp(&b.room_id))
@@ -82,11 +78,13 @@ fn assign_to_best_staff(
         .filter_map(|staff| {
             let route = solution.route_by_staff_id(&staff.id)?;
 
-            best_insertion_for_route(problem, staff, route, task).map(|insertion| StaffCandidate {
-                staff_id: staff.id.clone(),
-                end: insertion.end,
-                additional_travel: insertion.additional_travel,
-                visits_after_insert: insertion.visits_after_insert,
+            best_insertion_for_route(problem, staff, route, task).map(|insertion| {
+                InsertionCandidate {
+                    staff_id: staff.id.clone(),
+                    end: insertion.end,
+                    additional_travel: insertion.additional_travel,
+                    visits_after_insert: insertion.visits_after_insert,
+                }
             })
         })
         .min_by(|a, b| {
@@ -105,98 +103,6 @@ fn assign_to_best_staff(
     };
 
     route.visits = candidate.visits_after_insert;
-
-    true
-}
-
-fn assign_to_best_doctor_nurse_pair(
-    problem: &ProblemInput,
-    solution: &mut Solution,
-    task: &Task,
-) -> bool {
-    let mut candidates = Vec::new();
-
-    for doctor in problem
-        .staff
-        .iter()
-        .filter(|staff| staff.role == StaffRole::Doctor)
-    {
-        for nurse in problem
-            .staff
-            .iter()
-            .filter(|staff| staff.role == StaffRole::Nurse)
-        {
-            let Some(doctor_route) = solution.route_by_staff_id(&doctor.id) else {
-                continue;
-            };
-
-            let Some(nurse_route) = solution.route_by_staff_id(&nurse.id) else {
-                continue;
-            };
-
-            let Some(doctor_start) = earliest_start_for_append(problem, doctor_route, task) else {
-                continue;
-            };
-
-            let Some(nurse_start) = earliest_start_for_append(problem, nurse_route, task) else {
-                continue;
-            };
-
-            let start = doctor_start.max(nurse_start);
-            let end = start.add_minutes(task.duration_minutes);
-
-            if !problem.planning_window.contains(start, end)
-                || start < doctor.available_from
-                || doctor.available_to < end
-                || start < nurse.available_from
-                || nurse.available_to < end
-            {
-                continue;
-            }
-
-            let Some(doctor_travel) = additional_travel_minutes(problem, doctor_route, task) else {
-                continue;
-            };
-
-            let Some(nurse_travel) = additional_travel_minutes(problem, nurse_route, task) else {
-                continue;
-            };
-
-            candidates.push(PairCandidate {
-                doctor_id: doctor.id.clone(),
-                nurse_id: nurse.id.clone(),
-                start,
-                end,
-                additional_travel: doctor_travel + nurse_travel,
-            });
-        }
-    }
-
-    let Some(candidate) = candidates.into_iter().min_by(|a, b| {
-        a.end
-            .cmp(&b.end)
-            .then_with(|| a.additional_travel.cmp(&b.additional_travel))
-            .then_with(|| a.doctor_id.cmp(&b.doctor_id))
-            .then_with(|| a.nurse_id.cmp(&b.nurse_id))
-    }) else {
-        return false;
-    };
-
-    push_visit(
-        solution,
-        &candidate.doctor_id,
-        task,
-        candidate.start,
-        candidate.end,
-    );
-
-    push_visit(
-        solution,
-        &candidate.nurse_id,
-        task,
-        candidate.start,
-        candidate.end,
-    );
 
     true
 }
@@ -308,72 +214,12 @@ fn insertion_travel_delta(
     Some(previous_to_task + task_to_next - previous_to_next)
 }
 
-fn earliest_start_for_append(
-    problem: &ProblemInput,
-    route: &domain::StaffRoute,
-    task: &Task,
-) -> Option<Minute> {
-    match route.last_visit() {
-        Some(last_visit) => {
-            let travel_minutes =
-                problem.travel_minutes_between_rooms(&last_visit.room_id, &task.room_id)?;
-
-            Some(last_visit.end_minute.add_minutes(travel_minutes))
-        }
-        None => {
-            let travel_minutes = problem.travel_minutes_from_depot(&task.room_id)?;
-            Some(problem.planning_window.start.add_minutes(travel_minutes))
-        }
-    }
-}
-
-fn additional_travel_minutes(
-    problem: &ProblemInput,
-    route: &domain::StaffRoute,
-    task: &Task,
-) -> Option<i32> {
-    match route.last_visit() {
-        Some(last_visit) => {
-            problem.travel_minutes_between_rooms(&last_visit.room_id, &task.room_id)
-        }
-        None => problem.travel_minutes_from_depot(&task.room_id),
-    }
-}
-
-fn push_visit(
-    solution: &mut Solution,
-    staff_id: &StaffId,
-    task: &Task,
-    start: Minute,
-    end: Minute,
-) {
-    let Some(route) = solution.route_by_staff_id_mut(staff_id) else {
-        return;
-    };
-
-    route.visits.push(Visit {
-        task_id: task.id.clone(),
-        room_id: task.room_id.clone(),
-        start_minute: start,
-        end_minute: end,
-    });
-}
-
 #[derive(Debug, Clone)]
-struct StaffCandidate {
-    staff_id: StaffId,
+struct InsertionCandidate {
+    staff_id: domain::StaffId,
     end: Minute,
     additional_travel: i32,
     visits_after_insert: Vec<Visit>,
-}
-
-#[derive(Debug, Clone)]
-struct PairCandidate {
-    doctor_id: StaffId,
-    nurse_id: StaffId,
-    start: Minute,
-    end: Minute,
-    additional_travel: i32,
 }
 
 #[derive(Debug, Clone)]

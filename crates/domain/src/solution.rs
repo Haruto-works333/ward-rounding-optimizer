@@ -1,4 +1,4 @@
-use crate::{Minute, RoomId, StaffId, TaskId};
+use crate::{Minute, RoomId, Staff, StaffId, TaskId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Visit {
@@ -36,13 +36,17 @@ pub struct StaffRoute {
     /// A route may keep a staff member occupied even when no task Visit is recorded.
     /// This is mainly used for the doctor-accompany baseline, where the doctor waits
     /// while the nurse performs nurse-side tasks.
+    ///
+    /// タスクの Visit が記録されていなくても、スタッフを拘束し続ける場合に使う。
+    /// 主に doctor-accompany ベースラインで、看護師が看護師側タスクを行う間に
+    /// 医師が待機しているケースを表現する。
     pub forced_active_until: Option<Minute>,
 }
 
 impl StaffRoute {
-    pub fn new(staff_id: impl Into<String>) -> Self {
+    pub fn new(staff_id: StaffId) -> Self {
         Self {
-            staff_id: StaffId::new(staff_id),
+            staff_id,
             visits: Vec::new(),
             forced_active_until: None,
         }
@@ -71,6 +75,16 @@ impl Solution {
         Self {
             routes,
             unassigned_task_ids,
+        }
+    }
+
+    pub fn with_empty_routes(staff: &[Staff]) -> Self {
+        Self {
+            routes: staff
+                .iter()
+                .map(|s| StaffRoute::new(s.id.clone()))
+                .collect(),
+            unassigned_task_ids: Vec::new(),
         }
     }
 

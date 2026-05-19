@@ -1,16 +1,13 @@
 use domain::{
-    Minute, ProblemInput, RoomId, Solution, Staff, StaffId, StaffRole, Task, TaskRequirement, Visit,
+    Minute, ProblemInput, RoomId, Solution, Staff, StaffId, StaffRole, Task, TaskRequirement,
+};
+
+use crate::common::{
+    additional_travel_minutes, earliest_start_for_append, push_visit, StaffCandidate,
 };
 
 pub fn doctor_accompany_baseline(problem: &ProblemInput) -> Solution {
-    let mut solution = Solution {
-        routes: problem
-            .staff
-            .iter()
-            .map(|staff| domain::StaffRoute::new(staff.id.0.clone()))
-            .collect(),
-        unassigned_task_ids: Vec::new(),
-    };
+    let mut solution = Solution::with_empty_routes(&problem.staff);
 
     let Some(doctor) = problem
         .staff
@@ -40,7 +37,7 @@ pub fn doctor_accompany_baseline(problem: &ProblemInput) -> Solution {
     tasks.sort_by(|a, b| {
         a.room_id
             .cmp(&b.room_id)
-            .then_with(|| a.priority.cmp(&b.priority))
+            .then_with(|| a.priority.rank().cmp(&b.priority.rank()))
             .then_with(|| a.id.cmp(&b.id))
     });
 
@@ -111,6 +108,7 @@ fn assign_doctor_task_with_pair(
     push_visit(solution, &doctor.id, task, start, end);
 
     // The accompanying nurse is occupied while following the doctor.
+    // 同行看護師は医師に追随している間は拘束されているとみなす。
     mark_active_until(solution, &accompanying_nurse.id, end);
 
     *pair_available_at = end;
@@ -169,6 +167,7 @@ fn assign_nurse_task_with_pair(
     }
 
     // The nurse performs the task, while the doctor is occupied by accompanying/waiting.
+    // 看護師がタスクを実施する一方、医師は同行/待機で拘束される。
     push_visit(solution, &accompanying_nurse.id, task, start, end);
     mark_active_until(solution, &doctor.id, end);
 
@@ -188,7 +187,7 @@ fn assign_to_extra_nurse(
         .iter()
         .filter_map(|nurse| {
             let route = solution.route_by_staff_id(&nurse.id)?;
-            let start = earliest_staff_start(problem, route, task)?;
+            let start = earliest_start_for_append(problem, route, task)?;
             let end = start.add_minutes(task.duration_minutes);
 
             if !problem.planning_window.contains(start, end)
@@ -243,38 +242,6 @@ fn earliest_pair_start(
     Some(pair_available_at.add_minutes(travel_minutes))
 }
 
-fn earliest_staff_start(
-    problem: &ProblemInput,
-    route: &domain::StaffRoute,
-    task: &Task,
-) -> Option<Minute> {
-    match route.last_visit() {
-        Some(last_visit) => {
-            let travel_minutes =
-                problem.travel_minutes_between_rooms(&last_visit.room_id, &task.room_id)?;
-
-            Some(last_visit.end_minute.add_minutes(travel_minutes))
-        }
-        None => {
-            let travel_minutes = problem.travel_minutes_from_depot(&task.room_id)?;
-            Some(problem.planning_window.start.add_minutes(travel_minutes))
-        }
-    }
-}
-
-fn additional_travel_minutes(
-    problem: &ProblemInput,
-    route: &domain::StaffRoute,
-    task: &Task,
-) -> Option<i32> {
-    match route.last_visit() {
-        Some(last_visit) => {
-            problem.travel_minutes_between_rooms(&last_visit.room_id, &task.room_id)
-        }
-        None => problem.travel_minutes_from_depot(&task.room_id),
-    }
-}
-
 fn pair_can_work(
     problem: &ProblemInput,
     doctor: &Staff,
@@ -289,37 +256,10 @@ fn pair_can_work(
         && end <= nurse.available_to
 }
 
-fn push_visit(
-    solution: &mut Solution,
-    staff_id: &StaffId,
-    task: &Task,
-    start: Minute,
-    end: Minute,
-) {
-    let Some(route) = solution.route_by_staff_id_mut(staff_id) else {
-        return;
-    };
-
-    route.visits.push(Visit {
-        task_id: task.id.clone(),
-        room_id: task.room_id.clone(),
-        start_minute: start,
-        end_minute: end,
-    });
-}
-
 fn mark_active_until(solution: &mut Solution, staff_id: &StaffId, end: Minute) {
     let Some(route) = solution.route_by_staff_id_mut(staff_id) else {
         return;
     };
 
     route.mark_active_until(end);
-}
-
-#[derive(Debug, Clone)]
-struct StaffCandidate {
-    staff_id: StaffId,
-    start: Minute,
-    end: Minute,
-    additional_travel: i32,
 }
