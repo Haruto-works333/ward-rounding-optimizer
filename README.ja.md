@@ -1,6 +1,6 @@
-[English version](README.md)
-
 # 職種制約つき病棟ラウンド最適化PoC
+
+[English version](README.md)
 
 職種制約を考慮した病棟ラウンド経路最適化のPoCです。
 
@@ -49,7 +49,7 @@ Phase 1 は Rust CLI として実装済みです。
 points_per_doctor_minute = earned_points / doctor_active_minutes
 ```
 
-これは、希少リソースである医師の時間をどれだけ効率よく使えているかを表すものです。
+これは、希少リソースである医師の時間をどれだけ効率よく使えているかを表します。
 
 ## リポジトリ構成
 
@@ -150,3 +150,7 @@ Phase 1 では、CLI環境で最適化コアが成立することを確認しま
 4. より豊富なシナリオ生成
 5. local search などの最適化手法追加
 6. より現実的な運用制約への対応
+
+## ライセンス
+
+MIT

@@ -1,10 +1,11 @@
-[日本語版はこちら](README.ja.md)
-
 # Role-Constrained Ward Rounding Optimizer
+
+[日本語版はこちら](README.ja.md)
 
 A proof-of-concept optimizer for hospital ward rounding routes with role constraints.
 
-This project models ward rounding as a combinatorial optimization problem. It assigns room-based tasks to doctors and nurses while considering role requirements, travel time, task duration, task points, staff availability, and synchronization constraints.
+This project models ward rounding as a combinatorial optimization problem.
+It assigns room-based tasks to doctors and nurses while considering role requirements, travel time, task duration, task points, staff availability, and synchronization constraints.
 
 ## Current Status
 
