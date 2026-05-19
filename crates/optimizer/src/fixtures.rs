@@ -5,12 +5,12 @@ use domain::{
 
 pub fn mini_case_001(nurse_count: usize) -> ProblemInput {
     let rooms = vec![
-        Room::new("R101", "R101", 1, 0),
-        Room::new("R102", "R102", 2, 0),
-        Room::new("R103", "R103", 3, 0),
-        Room::new("R104", "R104", 1, 2),
-        Room::new("R105", "R105", 2, 2),
-        Room::new("R106", "R106", 3, 2),
+        Room::new("R101", "R101", Point::new(1, 0)),
+        Room::new("R102", "R102", Point::new(2, 0)),
+        Room::new("R103", "R103", Point::new(3, 0)),
+        Room::new("R104", "R104", Point::new(1, 2)),
+        Room::new("R105", "R105", Point::new(2, 2)),
+        Room::new("R106", "R106", Point::new(3, 2)),
     ];
 
     let tasks = vec![

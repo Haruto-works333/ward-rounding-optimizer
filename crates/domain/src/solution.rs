@@ -52,8 +52,19 @@ impl StaffRoute {
         }
     }
 
-    pub fn last_visit(&self) -> Option<&Visit> {
-        self.visits.last()
+    /// Return the temporally latest visit (by `end_minute`).
+    ///
+    /// Prefer this over `visits.last()`. `Vec::last()` returns the most recently inserted
+    /// visit, which is correct only when visits are appended in chronological order. If
+    /// a strategy inserts a visit in the middle of an existing route (e.g. the greedy
+    /// best-insertion path), `Vec::last()` will silently point at the wrong visit.
+    ///
+    /// 時系列上もっとも遅い visit (`end_minute` 最大) を返す。
+    /// `visits.last()` は「最後に push された visit」でしかなく、時系列順に append
+    /// した場合のみ正しい。経路途中に挿入する戦略 (greedy の best-insertion 等) では
+    /// `Vec::last()` は静かに別の visit を指してしまうため、こちらを使う。
+    pub fn latest_visit_by_time(&self) -> Option<&Visit> {
+        self.visits.iter().max_by_key(|visit| visit.end_minute)
     }
 
     pub fn mark_active_until(&mut self, minute: Minute) {

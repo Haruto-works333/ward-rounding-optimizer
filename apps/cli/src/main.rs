@@ -1,41 +1,67 @@
+use clap::{Parser, Subcommand};
 use domain::{ProblemInput, Solution};
 use optimizer::{
-    baseline::{doctor_accompany_baseline, room_order_baseline},
     fixtures::mini_case_001,
-    greedy::greedy_optimizer,
-    report::build_method_report,
+    report::{build_method_report, MethodReport},
+    solver::{all_solvers, GreedyOptimizer, Solver},
+    validate::Violation,
 };
 
-fn main() {
-    let args = std::env::args().collect::<Vec<_>>();
+#[derive(Parser, Debug)]
+#[command(name = "cli", about = "Ward rounding optimizer CLI", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Command>,
+}
 
-    match args.get(1).map(String::as_str) {
-        Some("mini-case") | None => run_mini_case(&args),
-        Some("sensitivity") => run_sensitivity(&args),
-        Some(command) => {
-            eprintln!("unknown command: {command}");
-            print_usage();
-            std::process::exit(1);
-        }
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Run the mini-case-001 scenario across all methods.
+    MiniCase {
+        /// Show per-route visit details and any constraint violations.
+        #[arg(long)]
+        details: bool,
+    },
+    /// Run the greedy optimizer over a range of nurse counts.
+    Sensitivity {
+        /// Minimum nurse count (inclusive).
+        #[arg(long, default_value_t = 1)]
+        nurse_min: usize,
+        /// Maximum nurse count (inclusive).
+        #[arg(long, default_value_t = 4)]
+        nurse_max: usize,
+    },
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    match cli.command.unwrap_or(Command::MiniCase { details: false }) {
+        Command::MiniCase { details } => run_mini_case(details),
+        Command::Sensitivity {
+            nurse_min,
+            nurse_max,
+        } => run_sensitivity(nurse_min, nurse_max),
     }
 }
 
-fn run_mini_case(args: &[String]) {
+fn run_mini_case(show_details: bool) {
     let problem = mini_case_001(2);
-    let show_details = has_flag(args, "--details");
+    let solvers = all_solvers();
 
-    let solutions = vec![
-        ("RoomOrderBaseline", room_order_baseline(&problem)),
-        (
-            "DoctorAccompanyBaseline",
-            doctor_accompany_baseline(&problem),
-        ),
-        ("GreedyOptimizer", greedy_optimizer(&problem)),
-    ];
-
-    let rows = solutions
+    let runs = solvers
         .iter()
-        .map(|(method, solution)| build_row(method, solution, &problem))
+        .map(|solver| {
+            let name = solver.name();
+            let solution = solver.solve(&problem);
+            let report = build_method_report(name, &solution, &problem);
+            (name, solution, report)
+        })
+        .collect::<Vec<_>>();
+
+    let rows = runs
+        .iter()
+        .map(|(_, _, report)| report_to_row(report))
         .collect::<Vec<_>>();
 
     println!("Scenario: mini-case-001");
@@ -49,23 +75,23 @@ fn run_mini_case(args: &[String]) {
     print_rows(&rows);
 
     if show_details {
-        for (method, solution) in &solutions {
-            print_solution_details(method, solution, &problem);
+        for (name, solution, report) in &runs {
+            print_solution_details(name, solution, &problem);
+            print_violations(&report.violations);
         }
     }
 }
 
-fn run_sensitivity(args: &[String]) {
-    let nurse_min = parse_usize_arg(args, "--nurse-min").unwrap_or(1);
-    let nurse_max = parse_usize_arg(args, "--nurse-max").unwrap_or(4);
-
+fn run_sensitivity(nurse_min: usize, nurse_max: usize) {
+    let solver = GreedyOptimizer;
     let mut rows = Vec::new();
 
     for nurse_count in nurse_min..=nurse_max {
         let problem = mini_case_001(nurse_count);
-        let solution = greedy_optimizer(&problem);
+        let solution = solver.solve(&problem);
+        let report = build_method_report(solver.name(), &solution, &problem);
 
-        rows.push(build_row("GreedyOptimizer", &solution, &problem));
+        rows.push(report_to_row(&report));
     }
 
     let sample_problem = mini_case_001(nurse_min);
@@ -81,13 +107,8 @@ fn run_sensitivity(args: &[String]) {
     print_rows(&rows);
 }
 
-fn build_row(
-    method: &'static str,
-    solution: &Solution,
-    problem: &ProblemInput,
-) -> ReportRow {
-    let report = build_method_report(method, solution, problem);
-    let score = report.score;
+fn report_to_row(report: &MethodReport) -> ReportRow {
+    let score = &report.score;
 
     ReportRow {
         nurse_count: report.nurse_count,
@@ -99,7 +120,7 @@ fn build_row(
         nurse_avg_min: score.nurse_avg_active_minutes,
         points_per_doctor_minute: score.points_per_doctor_minute,
         unassigned: score.unassigned_task_count,
-        violations: report.violation_count,
+        violations: report.violation_count(),
     }
 }
 
@@ -182,8 +203,7 @@ fn print_solution_details(method: &str, solution: &Solution, problem: &ProblemIn
 
             let room_name = problem
                 .room_by_id(&visit.room_id)
-                .map(|room| room.name.as_str())
-                .unwrap_or("unknown-room");
+                .map_or("unknown-room", |room| room.name.as_str());
 
             println!(
                 "  {:>2}-{:>2} | {:<3} | {:<4} | {:?} | {} pts",
@@ -212,14 +232,13 @@ fn print_solution_details(method: &str, solution: &Solution, problem: &ProblemIn
 
     for task_id in &solution.unassigned_task_ids {
         let Some(task) = problem.task_by_id(task_id) else {
-            println!("  {:?}", task_id);
+            println!("  {task_id:?}");
             continue;
         };
 
         let room_name = problem
             .room_by_id(&task.room_id)
-            .map(|room| room.name.as_str())
-            .unwrap_or("unknown-room");
+            .map_or("unknown-room", |room| room.name.as_str());
 
         println!(
             "  {:<3} | {:<4} | {:?} | {:?} | {} pts",
@@ -228,21 +247,17 @@ fn print_solution_details(method: &str, solution: &Solution, problem: &ProblemIn
     }
 }
 
-fn parse_usize_arg(args: &[String], name: &str) -> Option<usize> {
-    args.windows(2)
-        .find(|window| window[0] == name)
-        .and_then(|window| window[1].parse::<usize>().ok())
-}
+fn print_violations(violations: &[Violation]) {
+    if violations.is_empty() {
+        return;
+    }
 
-fn has_flag(args: &[String], name: &str) -> bool {
-    args.iter().any(|arg| arg == name)
-}
+    println!();
+    println!("Violations:");
 
-fn print_usage() {
-    eprintln!("usage:");
-    eprintln!("  cargo run -p cli -- mini-case");
-    eprintln!("  cargo run -p cli -- mini-case --details");
-    eprintln!("  cargo run -p cli -- sensitivity --nurse-min 1 --nurse-max 4");
+    for violation in violations {
+        println!("  [{:?}] {}", violation.kind, violation.message);
+    }
 }
 
 #[derive(Debug, Clone)]

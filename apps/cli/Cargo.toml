@@ -9,3 +9,4 @@ authors.workspace = true
 [dependencies]
 domain.workspace = true
 optimizer.workspace = true
+clap.workspace = true

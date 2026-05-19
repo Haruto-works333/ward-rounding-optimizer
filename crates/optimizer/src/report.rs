@@ -1,13 +1,20 @@
 use domain::{ProblemInput, ScoreBreakdown, Solution};
 
-use crate::{score, validate};
+use crate::scoring::score;
+use crate::validate::{validate, Violation};
 
 #[derive(Debug, Clone)]
 pub struct MethodReport {
     pub nurse_count: usize,
     pub method: &'static str,
     pub score: ScoreBreakdown,
-    pub violation_count: usize,
+    pub violations: Vec<Violation>,
+}
+
+impl MethodReport {
+    pub fn violation_count(&self) -> usize {
+        self.violations.len()
+    }
 }
 
 pub fn build_method_report(
@@ -22,6 +29,6 @@ pub fn build_method_report(
         nurse_count: problem.nurses().count(),
         method,
         score,
-        violation_count: violations.len(),
+        violations,
     }
 }

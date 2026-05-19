@@ -1,0 +1,10 @@
+Scenario: mini-case-001
+Planning window: 30 min
+Doctor count: 1
+
+Nurses | Method                   |  Score | Points | DoctorMin | DoctorTravel | NurseAvgMin |    Pts/DoctorMin | Unassigned | Violations
+------------------------------------------------------------------------------------------------------------------------------------
+1      | GreedyOptimizer          |    627 |   2300 |        28 |            7 |        30.0 |             82.1 |          5 |          0
+2      | GreedyOptimizer          |   2312 |   3250 |        28 |            7 |        27.0 |            116.1 |          1 |          0
+3      | GreedyOptimizer          |   2312 |   3250 |        28 |            7 |        18.0 |            116.1 |          1 |          0
+4      | GreedyOptimizer          |   2310 |   3250 |        28 |            7 |        13.8 |            116.1 |          1 |          0

@@ -95,13 +95,13 @@ pub fn score(solution: &Solution, problem: &ProblemInput) -> ScoreBreakdown {
     let nurse_avg_active_minutes = if nurse_count == 0 {
         0.0
     } else {
-        nurse_total_active_minutes as f64 / nurse_count as f64
+        f64::from(nurse_total_active_minutes) / f64::from(nurse_count)
     };
 
     let points_per_doctor_minute = if doctor_active_minutes == 0 {
         0.0
     } else {
-        earned_points as f64 / doctor_active_minutes as f64
+        f64::from(earned_points) / f64::from(doctor_active_minutes)
     };
 
     ScoreBreakdown {
@@ -147,6 +147,22 @@ fn route_travel_minutes(visits: &[domain::Visit], problem: &ProblemInput) -> i32
     total
 }
 
+/// Compute on-duty (engagement) minutes for a single route.
+///
+/// Returns the wall-clock span from `max(planning_window.start, staff.available_from)`
+/// to the later of the last visit end and `forced_active_until`. Idle time (gaps between
+/// visits and pre-first-visit idle) is included on purpose — this is the metric used as
+/// the denominator of `points_per_doctor_minute`. See [`domain::ScoreBreakdown::doctor_active_minutes`]
+/// for the full semantics. Clamped to 0 to defend against a `forced_active_until` that
+/// precedes the active window start.
+///
+/// 1 経路ぶんの拘束(オンデューティ)分を計算する。
+/// `max(planning_window.start, staff.available_from)` から、最後の visit 終了と
+/// `forced_active_until` の大きい方までの壁時計時間を返す。visit 間や最初の visit
+/// 以前のアイドル時間も意図的に含める — これは `points_per_doctor_minute` の
+/// 分母として使う指標。詳細は [`domain::ScoreBreakdown::doctor_active_minutes`]
+/// を参照。`forced_active_until` が active window 開始より前にあるケースに
+/// 備えて 0 で下限を切る。
 fn route_active_minutes(
     route: &domain::StaffRoute,
     sorted_visits: &[domain::Visit],
@@ -163,5 +179,5 @@ fn route_active_minutes(
     };
 
     let active_from = problem.planning_window.start.max(staff.available_from);
-    active_until.value() - active_from.value()
+    (active_until.value() - active_from.value()).max(0)
 }

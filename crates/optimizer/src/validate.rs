@@ -40,6 +40,7 @@ struct AssignedVisit {
     visit: Visit,
 }
 
+#[must_use]
 pub fn validate(solution: &Solution, problem: &ProblemInput) -> Vec<Violation> {
     let mut violations = Vec::new();
 
@@ -67,14 +68,14 @@ pub fn validate(solution: &Solution, problem: &ProblemInput) -> Vec<Violation> {
         if !task_by_id.contains_key(task_id) {
             violations.push(Violation::new(
                 ViolationKind::UnknownTask,
-                format!("unknown unassigned task: {:?}", task_id),
+                format!("unknown unassigned task: {task_id:?}"),
             ));
         }
 
         if !unassigned_task_ids.insert(task_id.clone()) {
             violations.push(Violation::new(
                 ViolationKind::AssignmentStateMismatch,
-                format!("duplicated unassigned task id: {:?}", task_id),
+                format!("duplicated unassigned task id: {task_id:?}"),
             ));
         }
     }
@@ -119,7 +120,7 @@ pub fn validate(solution: &Solution, problem: &ProblemInput) -> Vec<Violation> {
             if visit.start_minute >= visit.end_minute {
                 violations.push(Violation::new(
                     ViolationKind::InvalidVisitTime,
-                    format!("invalid visit time: {:?}", visit),
+                    format!("invalid visit time: {visit:?}"),
                 ));
             }
 
@@ -219,8 +220,7 @@ fn validate_route_timing(
             violations.push(Violation::new(
                 ViolationKind::InsufficientTravelTime,
                 format!(
-                    "insufficient travel time from depot: staff={:?}, visit={:?}, required_start_at_least={:?}",
-                    staff_id, first, earliest_start
+                    "insufficient travel time from depot: staff={staff_id:?}, visit={first:?}, required_start_at_least={earliest_start:?}"
                 ),
             ));
         }
@@ -234,8 +234,7 @@ fn validate_route_timing(
             violations.push(Violation::new(
                 ViolationKind::StaffVisitOverlap,
                 format!(
-                    "staff visit overlap: staff={:?}, previous={:?}, next={:?}",
-                    staff_id, previous, next
+                    "staff visit overlap: staff={staff_id:?}, previous={previous:?}, next={next:?}"
                 ),
             ));
             continue;
@@ -253,8 +252,7 @@ fn validate_route_timing(
             violations.push(Violation::new(
                 ViolationKind::InsufficientTravelTime,
                 format!(
-                    "insufficient travel time: staff={:?}, previous={:?}, next={:?}, required_start_at_least={:?}",
-                    staff_id, previous, next, earliest_next_start
+                    "insufficient travel time: staff={staff_id:?}, previous={previous:?}, next={next:?}, required_start_at_least={earliest_next_start:?}"
                 ),
             ));
         }
@@ -275,14 +273,14 @@ fn validate_assignment_state(
         if is_assigned && is_unassigned {
             violations.push(Violation::new(
                 ViolationKind::AssignmentStateMismatch,
-                format!("task is both assigned and unassigned: {:?}", task_id),
+                format!("task is both assigned and unassigned: {task_id:?}"),
             ));
         }
 
         if !is_assigned && !is_unassigned {
             violations.push(Violation::new(
                 ViolationKind::AssignmentStateMismatch,
-                format!("task is neither assigned nor unassigned: {:?}", task_id),
+                format!("task is neither assigned nor unassigned: {task_id:?}"),
             ));
         }
 

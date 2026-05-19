@@ -2,7 +2,8 @@ use optimizer::{
     baseline::{doctor_accompany_baseline, room_order_baseline},
     fixtures::mini_case_001,
     greedy::greedy_optimizer,
-    score, validate,
+    scoring::score,
+    validate::validate,
 };
 
 #[test]

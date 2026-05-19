@@ -1,6 +1,6 @@
 use domain::{Minute, ProblemInput, Solution, StaffRole, Task, TaskRequirement, Visit};
 
-use crate::common::assign_pair_for_sync_task;
+use crate::placement::assign_pair_for_sync_task;
 
 pub fn greedy_optimizer(problem: &ProblemInput) -> Solution {
     let mut solution = Solution::with_empty_routes(&problem.staff);
@@ -28,7 +28,7 @@ pub fn greedy_optimizer(problem: &ProblemInput) -> Solution {
     doctor_tasks.sort_by(task_value_order);
 
     for task in doctor_tasks {
-        if !assign_to_best_staff(problem, &mut solution, task, StaffRole::Doctor) {
+        if !assign_via_insertion_to_best_staff(problem, &mut solution, task, StaffRole::Doctor) {
             solution.unassigned_task_ids.push(task.id.clone());
         }
     }
@@ -47,7 +47,7 @@ pub fn greedy_optimizer(problem: &ProblemInput) -> Solution {
     nurse_side_tasks.sort_by(task_value_order);
 
     for task in nurse_side_tasks {
-        if !assign_to_best_staff(problem, &mut solution, task, StaffRole::Nurse) {
+        if !assign_via_insertion_to_best_staff(problem, &mut solution, task, StaffRole::Nurse) {
             solution.unassigned_task_ids.push(task.id.clone());
         }
     }
@@ -65,7 +65,18 @@ fn task_value_order(a: &&Task, b: &&Task) -> std::cmp::Ordering {
         .then_with(|| a.id.cmp(&b.id))
 }
 
-fn assign_to_best_staff(
+/// Assign `task` to the role-matching staff whose **best-insertion point** in their existing
+/// route ends earliest.
+///
+/// Unlike [`crate::placement::assign_via_append_to_best_staff`], this evaluates every
+/// insertion position in each candidate's route, so it can place a task between two
+/// existing visits when feasible. Useful when tasks are not processed in chronological
+/// order (greedy processes high-value tasks first).
+///
+/// [`crate::placement::assign_via_append_to_best_staff`] と違い、各候補の既存経路の
+/// 全挿入位置を評価する。タスクを時系列順でなく価値順に処理する greedy では、
+/// 既に入っている visit の間に新タスクを挟む必要があるため、こちらを使う。
+fn assign_via_insertion_to_best_staff(
     problem: &ProblemInput,
     solution: &mut Solution,
     task: &Task,

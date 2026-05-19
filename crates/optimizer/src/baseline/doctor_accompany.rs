@@ -2,9 +2,8 @@ use domain::{
     Minute, ProblemInput, RoomId, Solution, Staff, StaffId, StaffRole, Task, TaskRequirement,
 };
 
-use crate::common::{
-    additional_travel_minutes, earliest_start_for_append, push_visit, StaffCandidate,
-};
+use crate::placement::{push_visit, StaffCandidate};
+use crate::routing::{additional_travel_minutes, earliest_start_for_append};
 
 pub fn doctor_accompany_baseline(problem: &ProblemInput) -> Solution {
     let mut solution = Solution::with_empty_routes(&problem.staff);
