@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "apps/cli",
+    "crates/domain",
+    "crates/optimizer",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+repository = "https://github.com/Haruto-works333/ward-rounding-optimizer"
+license = "MIT"
+authors = ["Haruto-works333"]
+
+[workspace.dependencies]
+domain = { path = "crates/domain" }
+optimizer = { path = "crates/optimizer" }
